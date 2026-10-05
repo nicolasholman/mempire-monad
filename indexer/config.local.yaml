@@ -1,0 +1,66 @@
+# yaml-language-server: $schema=./node_modules/envio/evm.schema.json
+# LOCAL ONLY — the anvil chain from scripts/local-up.sh (chain 31337, :8611).
+# Same project, contracts and events as config.yaml; only `chains:` differs.
+# HyperSync does not cover a local chain, so the RPC is the data source
+# (`for: sync`: historical sync and realtime). test/config.test.ts fails if the
+# contracts section here drifts from config.yaml.
+#
+#   ./scripts/local-indexer.sh up        # see README "Run locally against anvil"
+name: mempire-indexer
+description: Mempire on Monad — fighters, merges, chests, escrowed 1v1 matches, the on-chain play log and the market meta (Chainlink CRE or Pyth momentum).
+# Store every address lowercase so the app can query with address.toLowerCase().
+address_format: lowercase
+# Every handler stamps rows with the transaction hash (the live play feed links
+# each card drop to its Monad tx). Block number and timestamp come by default.
+field_selection:
+  transaction_fields: [hash]
+contracts:
+  - name: MempireCards
+    abi_file_path: ./abis/MempireCards.json
+    events:
+      - event: CoinRegistered
+      - event: CoinActive
+      - event: CardMinted
+      - event: CardMerged
+      - event: Transfer
+      - event: ChestGranted
+      - event: ChestForfeited
+      - event: ChestUnlocking
+      - event: ChestSkipped
+      - event: ChestOpening
+      - event: ChestOpened
+  - name: MempireArena
+    abi_file_path: ./abis/MempireArena.json
+    events:
+      - event: MatchCreated
+      - event: MatchJoined
+      - event: MatchCancelled
+      - event: Played
+      - event: Checkpoint
+      - event: Claimed
+      - event: MatchSettled
+      - event: MatchVoided
+      - event: WinRewarded
+      - event: PayoutHeld
+  - name: MarketMeta
+    abi_file_path: ./abis/MarketMeta.json
+    events:
+      - event: MetaPosted
+      - event: MetaSource
+# anvil never reorgs and mines a block per transaction; skip the reorg
+# bookkeeping so a fresh local chain indexes in seconds.
+rollback_on_reorg: false
+chains:
+  - id: 31337 # anvil (scripts/local-up.sh)
+    start_block: 0 # from shared/deployments/31337.json (startBlock)
+    rpc:
+      - url: http://127.0.0.1:8611
+        for: sync
+        polling_interval: 500
+    contracts:
+      - name: MempireCards
+        address: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9" # from shared/deployments/31337.json (cards)
+      - name: MempireArena
+        address: "0x0165878A594ca255338adfa4d48449f69242Eb8F" # from shared/deployments/31337.json (arena)
+      - name: MarketMeta
+        address: "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707" # from shared/deployments/31337.json (marketMeta)
